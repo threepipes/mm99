@@ -16,7 +16,7 @@ public class BrokenSlotMachines {
 		for (int i = 0; i < numMachines; i++) {
 			slot[i] = new Machine(i);
 		}
-		final double searchRatio = 0.2;// * Math.pow((double) 1000 / coins, 0.1);
+		final double searchRatio = 0.2;
 		solveSearching((int) Math.min(coins * searchRatio * 1.5,
 				maxTime * searchRatio / noteTime) / numMachines);
 		return 0;
@@ -34,7 +34,6 @@ public class BrokenSlotMachines {
 		for (int t = 0; passed < maxTime && coins > 0; t++) {
 			if (rand.nextDouble() < eps * Math.pow(Math.E, -t * dec)) {
 				// ’Tõƒp[ƒg
-//				slot[rand.nextInt(N)].play(1);
 				double sum = 0;
 				for (int i = 0; i < N; i++) {
 					sum += slot[i].expect();
@@ -68,7 +67,7 @@ public class BrokenSlotMachines {
 					best = s;
 				}
 			}
-//			if (best == null) return;
+			if (passed > maxTime * 0.6 && best.expect() < 0.9) return;
 			if (useNote && best.expect() < 0.9 && noteTime + passed <= maxTime) best.notePlay(1);
 			else best.play(1);
 		}
@@ -100,7 +99,6 @@ public class BrokenSlotMachines {
 		if (numNotePlay > 0) for (Machine s: slot) {
 			for (int i = 0; i < numNotePlay; i++) {
 				if (i >= 10 && s.expectNote() + s.expectQuick() < 0.5 + i / 100.0) {
-//					if (i >= 20) s.decline = true;
 					break;
 				}
 				s.notePlay(1);
@@ -190,7 +188,7 @@ class Machine {
 	}
 	
 	double expect() {
-		return 0.5 * (expectQuick() + expectNote());
+		return (expectQuick() * 0.3 + expectNote() * 0.7);
 	}
 }
 

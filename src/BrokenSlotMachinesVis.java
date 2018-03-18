@@ -241,7 +241,7 @@ public class BrokenSlotMachinesVis {
 		debug = false;
 		
 //		Log.debug = debug;
-		int start = 50;
+		int start = 80;
 		int end = start + 30;
 		if (!debug) {
 			start = 1001;
