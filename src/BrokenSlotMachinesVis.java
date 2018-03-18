@@ -1,3 +1,11 @@
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class BrokenSlotMachinesVis {
@@ -33,6 +41,7 @@ public class BrokenSlotMachinesVis {
 	private int[] wheelSize;
 	private boolean failed = false;
 	private LongTest longTest;
+	private Result result;
 
 	private int count(String s, char c) {
 		int ret = 0;
@@ -81,6 +90,16 @@ public class BrokenSlotMachinesVis {
 				wheels[i][j] += wheels[i][j] + wheels[i][j];
 			}
 		}
+		calculateExpected();
+		double meanPay = 0;
+		double maxPay = 0;
+		double minPay = Integer.MAX_VALUE;
+		for (int i = 0; i < numMachines; i++) {
+			meanPay += expected[i];
+			maxPay = Math.max(maxPay, expected[i]);
+			minPay = Math.min(minPay, expected[i]);
+		}
+		result = new Result(seed, coins, maxTime, noteTime, numMachines, maxPay, meanPay / numMachines, minPay);
 	}
 
 	public int quickPlay(int machineNumber, int times) {
@@ -170,6 +189,12 @@ public class BrokenSlotMachinesVis {
 		}
 		return coins;
 	}
+	
+	public Result run(int seed) {
+		final double score = runTest(new LongTest(seed + ""));
+		result.score = score;
+		return result;
+	}
 
 	// Relative scoring, must be > 0.
 	public double[] score(double[][] raw) {
@@ -197,13 +222,87 @@ public class BrokenSlotMachinesVis {
 	}
 
 	public static void main(String[] args) {
-		for (int i = 1; i <= 10; i++) {
-			LongTest test = new LongTest("" + i);
+		List<Result> resList = new ArrayList<>();
+		boolean debug = true;
+		debug = false;
+		
+		int start = 2000;
+		int end = start;
+		if (!debug) {
+			Log.debug = false;
+			start = 1001;
+			end = 2000;
+		}
+		for (int i = start; i <= end; i++) {
 			BrokenSlotMachinesVis vis = new BrokenSlotMachinesVis();
 			PlaySlots.field = vis;
-			double score = vis.runTest(test);
-			System.out.println("Score: " + score);
+			Result res = vis.run(i);
+			resList.add(res);
+			System.out.println(res);
 		}
+		
+		if (!debug) outputResult(resList);
+	}
+	
+    static void outputResult(List<Result> results) {
+        Calendar c = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("MMdd_HHmmss");
+        String date = sdf.format(c.getTime());
+        String filename = "results/result_" + date + ".csv";
+        try {
+            PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(filename)));
+            writer.println("seed,coins,maxTime,noteTime,numMachines,maxPayout,meanPayout,minPayout,score");
+            for(Result r: results) {
+                writer.println(r.csv());
+            }
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        saveSnapshot(date);
+    }
+
+    static void saveSnapshot(String date) {
+        String filename = "snapshot/code_" + date + ".java";
+        try {
+            Path sourcePath = Paths.get("./src/BrokenSlotMachines.java");
+            Path targetPath = Paths.get(filename);
+            Files.copy(sourcePath, targetPath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+class Result {
+	long seed;
+	int coins;
+	int maxTime;
+	int noteTime;
+	int numMachines;
+	double maxPay, meanPay, minPay;
+	double score;
+	Result(long seed, int coins, int maxTime, int noteTime, int numMachines,
+			double maxPayout, double meanPayout, double minPayout) {
+		this.coins = coins;
+		this.maxTime = maxTime;
+		this.noteTime = noteTime;
+		this.numMachines = numMachines;
+		this.seed = seed;
+		this.maxPay = maxPayout;
+		this.meanPay = meanPayout;
+		this.minPay = minPayout;
+	}
+	
+	@Override
+	public String toString() {
+		return String.format("seed:%d coin:%d time:%d note:%d N:%d max:%f score:%f",
+				seed, coins, maxTime, noteTime, numMachines, maxPay, score);
+	}
+	
+	public String csv() {
+		return String.format("%d,%d,%d,%d,%d,%f,%f,%f,%f",
+				seed, coins, maxTime, noteTime, numMachines, maxPay, meanPay, minPay, score);
 	}
 }
 

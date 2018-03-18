@@ -3,6 +3,8 @@
 /bin/
 /downloads/
 /gradle/
+/results/
+/snapshot/
 
 .classpath
 .project
