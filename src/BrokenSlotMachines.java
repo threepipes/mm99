@@ -17,7 +17,7 @@ public class BrokenSlotMachines {
 			slot[i] = new Machine(i);
 		}
 		final double searchRatio = 0.2;// * Math.pow((double) 1000 / coins, 0.1);
-		solveSearching((int) Math.min(coins * searchRatio,
+		solveSearching((int) Math.min(coins * searchRatio * 1.5,
 				maxTime * searchRatio / noteTime) / numMachines);
 		return 0;
 	}
@@ -61,12 +61,14 @@ public class BrokenSlotMachines {
 			double bestScore = Integer.MIN_VALUE;
 			Machine best = null;
 			for (Machine s: slot) {
+				if (s.decline) continue;
 				final double score = s.expect() + Math.sqrt(Math.log(t) / (s.count * 2));
 				if (score > bestScore) {
 					bestScore = score;
 					best = s;
 				}
 			}
+//			if (best == null) return;
 			if (useNote && best.expect() < 0.9 && noteTime + passed <= maxTime) best.notePlay(1);
 			else best.play(1);
 		}
@@ -85,6 +87,9 @@ public class BrokenSlotMachines {
 		return bestSlot;
 	}
 
+	/*
+	 * TODO memo: M—Š‹æŠÔ •ªŽU‚ÌŠú‘Ò’l
+	 */
 	void solveSearching(int numNotePlay) {
 		numNotePlay = Math.min(30, numNotePlay);
 		if(numNotePlay * noteTime * N > maxTime || numNotePlay * N > coins) {
@@ -94,12 +99,15 @@ public class BrokenSlotMachines {
 		
 		if (numNotePlay > 0) for (Machine s: slot) {
 			for (int i = 0; i < numNotePlay; i++) {
-				if (i >= 10 && s.expectNote() < 0.5 + i / 100.0) break;
+				if (i >= 10 && s.expectNote() + s.expectQuick() < 0.5 + i / 100.0) {
+//					if (i >= 20) s.decline = true;
+					break;
+				}
 				s.notePlay(1);
 			}
 		}
 		
-		solveUCB(numNotePlay > 0, Integer.MAX_VALUE, true);
+		solveUCB(numNotePlay > 0, maxTime, true);
 	}
 }
 
@@ -113,6 +121,7 @@ class Machine {
 	int count;
 	int[][] slot;
 	int slotCount = 0;
+	boolean decline = false;
 	Machine(int id) {
 		this.id = id;
 		slot = new int[3][7];
@@ -157,9 +166,9 @@ class Machine {
 	
 	boolean playOK(int time) {
 		return //BrokenSlotMachines.passed + time * BrokenSlotMachines.noteTime <= BrokenSlotMachines.maxTime && 
-				(BrokenSlotMachines.passed < BrokenSlotMachines.maxTime * 2 / 3 ||
+				BrokenSlotMachines.passed < BrokenSlotMachines.maxTime * 2 / 3 ||
 				BrokenSlotMachines.coins > BrokenSlotMachines.C * 0.1 ||
-				expect() >= 1);
+				expect() >= 1;
 	}
 	
 	double expectNote() {
