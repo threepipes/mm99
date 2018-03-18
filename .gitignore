@@ -5,6 +5,8 @@
 /gradle/
 /results/
 /snapshot/
+/results_old/
+/**/.ipynb_checkpoints/
 
 .classpath
 .project

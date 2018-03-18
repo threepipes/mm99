@@ -15,7 +15,11 @@ public class BrokenSlotMachinesVis {
 	public String displayTestCase(String seed) {
 		generateTestCase(Long.parseLong(seed));
 		calculateExpected();
-		String s = "Seed = " + seed + "\n\nCoins: " + coins + "\n";
+		return displayTestCaseNogen();
+	}
+	
+	public String displayTestCaseNogen() {
+		String s = "Seed = " + longTest.seed + "\n\nCoins: " + coins + "\n";
 		s += "Max Time: " + maxTime + "\n";
 		s += "Note Time: " + noteTime + "\n";
 		s += "Num Machines: " + numMachines + "\n\n";
@@ -142,6 +146,7 @@ public class BrokenSlotMachinesVis {
 				failed = true;
 				return new String[]{"-1"};
 			}
+			result.used[machineNumber]++;
 			coins--;
 			Random r = machineState[machineNumber];
 			int w = wheelSize[machineNumber];
@@ -163,6 +168,15 @@ public class BrokenSlotMachinesVis {
 		ret[0] = "" + win;
 		coins += win;
 		return ret;
+	}
+	
+	void displayUsed() {
+		for (int i = 0; i < numMachines; i++) {
+			System.out.printf("%2d: %4d true=%f noteE=%f quickE=%f\n",
+					i, result.used[i], expected[i],
+					longTest.player.slot[i].expectNote(),
+					longTest.player.slot[i].expectQuick());
+		}
 	}
 
 	public double runTest(LongTest lt) {
@@ -226,10 +240,10 @@ public class BrokenSlotMachinesVis {
 		boolean debug = true;
 		debug = false;
 		
-		int start = 2000;
-		int end = start;
+//		Log.debug = debug;
+		int start = 20;
+		int end = start + 30;
 		if (!debug) {
-			Log.debug = false;
 			start = 1001;
 			end = 2000;
 		}
@@ -238,6 +252,7 @@ public class BrokenSlotMachinesVis {
 			PlaySlots.field = vis;
 			Result res = vis.run(i);
 			resList.add(res);
+			if (debug) vis.displayUsed();
 			System.out.println(res);
 		}
 		
@@ -282,6 +297,7 @@ class Result {
 	int numMachines;
 	double maxPay, meanPay, minPay;
 	double score;
+	int[] used;
 	Result(long seed, int coins, int maxTime, int noteTime, int numMachines,
 			double maxPayout, double meanPayout, double minPayout) {
 		this.coins = coins;
@@ -292,6 +308,7 @@ class Result {
 		this.maxPay = maxPayout;
 		this.meanPay = meanPayout;
 		this.minPay = minPayout;
+		used = new int[numMachines];
 	}
 	
 	@Override
@@ -321,6 +338,7 @@ class LongTest {
 	String seed;
 	int tl;
 	long time;
+	BrokenSlotMachines player;
 	LongTest(String seed) {
 		this.seed = seed;
 	}
@@ -351,6 +369,7 @@ class LongTest {
 //	}
 	
 	int playSlots(int coins, int maxTime, int noteTime, int numMachines) {
-		return new BrokenSlotMachines().playSlots(coins, maxTime, noteTime, numMachines);
+		player = new BrokenSlotMachines();
+		return player.playSlots(coins, maxTime, noteTime, numMachines);
 	}
 }
