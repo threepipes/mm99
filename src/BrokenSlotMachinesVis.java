@@ -241,8 +241,8 @@ public class BrokenSlotMachinesVis {
 		debug = false;
 		
 //		Log.debug = debug;
-		int start = 80;
-		int end = start + 30;
+		int start = 1;
+		int end = start + 9;
 		if (!debug) {
 			start = 1001;
 			end = 2000;
@@ -252,8 +252,12 @@ public class BrokenSlotMachinesVis {
 			PlaySlots.field = vis;
 			Result res = vis.run(i);
 			resList.add(res);
-			if (debug) vis.displayUsed();
 			System.out.println(res);
+			if (debug) {
+				System.out.println(vis.displayTestCaseNogen());
+				vis.displayUsed();
+				System.out.println();
+			}
 		}
 		
 		if (!debug) outputResult(resList);

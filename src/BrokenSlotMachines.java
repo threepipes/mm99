@@ -17,7 +17,7 @@ public class BrokenSlotMachines {
 			slot[i] = new Machine(i);
 		}
 		final double searchRatio = 0.2;
-		solveSearching((int) Math.min(coins * searchRatio * 1.5,
+		solveSearching((int) Math.min(coins * searchRatio * 2,
 				maxTime * searchRatio / noteTime) / numMachines);
 		return 0;
 	}
