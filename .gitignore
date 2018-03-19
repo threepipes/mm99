@@ -12,3 +12,4 @@
 .project
 gradlew
 gradlew.bat
+*.csv

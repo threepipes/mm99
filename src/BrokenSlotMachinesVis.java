@@ -2,6 +2,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.channels.ShutdownChannelGroupException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,7 +70,15 @@ public class BrokenSlotMachinesVis {
 			expected[i] = 1.0 * payouts[i] / wheels[i][0].length() / wheels[i][1].length() / wheels[i][2].length();
 		}
 	}
+	
+	void swap(int[] a, int i1, int i2) {
+		final int tmp = a[i1];
+		a[i1] = a[i2];
+		a[i2] = tmp;
+	}
 
+	int[] shuffle;
+	static boolean doShuffle = false;
 	private void generateTestCase(long seed) {
 		Random r = new Random(seed);
 		coins = 100 + r.nextInt(9901);
@@ -77,6 +86,15 @@ public class BrokenSlotMachinesVis {
 		noteTime = 2 + r.nextInt(9);
 		numMachines = r.nextInt(8) + 3; 
 		machineState = new Random[numMachines];
+		shuffle = new int[numMachines];
+		
+		Random sr = new Random();
+		for (int i = 0; i < numMachines; i++) shuffle[i] = i;
+		for (int i = 0; i < numMachines * 10; i++) {
+			final int i1 = sr.nextInt(numMachines);
+			final int i2 = sr.nextInt(numMachines);
+			swap(shuffle, i1, i2);
+		}
 		wheels = new String[numMachines][3];
 		wheelSize = new int[numMachines];
 		for (int i = 0; i < numMachines; i++) {
@@ -137,6 +155,7 @@ public class BrokenSlotMachinesVis {
 	}
 
 	public String[] doPlay(int machineNumber, int times) {
+		if (doShuffle) machineNumber = shuffle[machineNumber];
 		if (failed) return new String[]{"-1"};
 		int win = 0;
 		String[] ret = new String[times + 1];
@@ -238,6 +257,7 @@ public class BrokenSlotMachinesVis {
 	public static void main(String[] args) {
 		List<Result> resList = new ArrayList<>();
 		boolean debug = true;
+//		doShuffle = true;
 		debug = false;
 		
 //		Log.debug = debug;
@@ -247,18 +267,21 @@ public class BrokenSlotMachinesVis {
 			start = 1001;
 			end = 2000;
 		}
+		double score = 0;
 		for (int i = start; i <= end; i++) {
 			BrokenSlotMachinesVis vis = new BrokenSlotMachinesVis();
 			PlaySlots.field = vis;
 			Result res = vis.run(i);
 			resList.add(res);
 			System.out.println(res);
+			score += res.score;
 			if (debug) {
-				System.out.println(vis.displayTestCaseNogen());
+//				System.out.println(vis.displayTestCaseNogen());
 				vis.displayUsed();
 				System.out.println();
 			}
 		}
+		System.out.println(score);
 		
 		if (!debug) outputResult(resList);
 	}
