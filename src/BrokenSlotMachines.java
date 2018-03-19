@@ -19,7 +19,7 @@ public class BrokenSlotMachines {
 			slot[i] = new Machine(i);
 		}
 		final double searchRatio = 0.2;
-		solveSearching((int) Math.min(coins * searchRatio * 2,
+		solveSearchingUCB((int) Math.min(coins * searchRatio * 2,
 				maxTime * searchRatio / noteTime) / numMachines);
 		return 0;
 	}
@@ -74,6 +74,35 @@ public class BrokenSlotMachines {
 			else best.play(1);
 		}
 	}
+
+	void solveSearchingUCB(int numNotePlay) {
+		numNotePlay = Math.min(30, numNotePlay);
+		
+		for (Machine s: slot) {
+			s.notePlay(1);
+		}
+		
+		for (int t = 1; t <= (numNotePlay - 1) * slot.length; t++) {
+			double bestScore = Integer.MIN_VALUE;
+			Machine best = null;
+			for (Machine s: slot) {
+				final double score = s.expectNote()
+						* (1 + Const.meanDiff[Math.min(30, s.count)]) * 0.5
+						+ Math.sqrt(Math.log(t) / (s.count * 2));
+				if (score > bestScore) {
+					bestScore = score;
+					best = s;
+				}
+			}
+			best.notePlay(1);
+		}
+		
+		for (Machine s: slot) {
+			if (s.count >= 5) s.estimateSlot(rand);
+		}
+		
+		solveUCB(numNotePlay > 0, maxTime, true);
+	}
 	
 	Machine getBest() {
 		Machine bestSlot = null;
@@ -88,9 +117,6 @@ public class BrokenSlotMachines {
 		return bestSlot;
 	}
 
-	/*
-	 * TODO memo: M—Š‹æŠÔ •ªŽU‚ÌŠú‘Ò’l
-	 */
 	void solveSearching(int numNotePlay) {
 		numNotePlay = Math.min(30, numNotePlay);
 		if(numNotePlay * noteTime * N > maxTime || numNotePlay * N > coins) {
@@ -299,9 +325,7 @@ class Machine {
 		return 0;
 	}
 	
-//	double updateExp = -1;
 	double expectNote() {
-//		if (updateExp >= 0) return updateExp;
 		if (slotLen[0] == 0) return EPS;
 		double exp = 0;
 		for (int i = 0; i < rate.length; i++) {
