@@ -19,8 +19,10 @@ public class BrokenSlotMachines {
 			slot[i] = new Machine(i);
 		}
 		final double searchRatio = 0.2;
-		solveSearchingUCB((int) Math.min(coins * searchRatio * 2,
-				maxTime * searchRatio / noteTime) / numMachines);
+		final int numUseNote = (int) Math.min(coins * searchRatio * 2,
+				maxTime * searchRatio / noteTime) / numMachines;
+		if (coins / numMachines < 1000) solveSearchingUCB(numUseNote);
+		else solveSearching(numUseNote);
 		return 0;
 	}
 	
@@ -58,7 +60,7 @@ public class BrokenSlotMachines {
 	
 	void solveUCB(boolean played, int maxPlay, boolean useNote) {
 		if (!played) for (Machine s: slot) s.play(1);
-		for (int t = 1; passed < maxTime && coins > 0 && t < maxPlay; t++) {
+		for (int t = 1; passed < maxTime && coins > 50 && t < maxPlay; t++) {
 			double bestScore = Integer.MIN_VALUE;
 			Machine best = null;
 			for (Machine s: slot) {
@@ -144,6 +146,12 @@ class Machine {
 	};
 	final static double EPS = 1e-8;
 	final static int SLOT_LABEL_N = 7;
+	final static String slotChars = "AABBBBCCCCCDDDDDDEEEEEEFFFFFFFGGGGGGGG";
+	static double[] alpRatio = new double[SLOT_LABEL_N];
+	static {
+		for (char c: slotChars.toCharArray()) alpRatio[c - 'A']++;
+		for (int i = 0; i < SLOT_LABEL_N; i++) alpRatio[i] /= slotChars.length();
+	}
 	int id;
 	int wins;
 	int count;
@@ -325,6 +333,7 @@ class Machine {
 		return 0;
 	}
 	
+	final int EST_SPACE = 18;
 	double expectNote() {
 		if (slotLen[0] == 0) return EPS;
 		double exp = 0;
@@ -332,7 +341,8 @@ class Machine {
 			double tmp = rate[i];
 			for (int j = 0; j < 3; j++) {
 				if (slotLen[j] == 0) continue;
-				tmp *= (double) slot[j][i] / slotLen[j];
+				final int slSpace = Math.max(0, EST_SPACE - slotLen[j]);
+				tmp *= (double) (slot[j][i] + slSpace * alpRatio[i] * 0.5) / Math.max(EST_SPACE, slotLen[j]);
 			}
 			exp += tmp;
 		}
