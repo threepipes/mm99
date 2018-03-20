@@ -7,6 +7,19 @@ public class BrokenSlotMachines {
 	Machine[] slot;
 	Random rand = new Random(0);
 	
+	static double SEARCH_RATIO_TIME = 0.2;
+	static double SEARCH_RATIO_COIN = 0.4;
+	static int SWITCH_ALGO_BORDER = 1000;
+
+	static double UCB_EVAL_WEIGHT = 1.0;
+	static double CUT_TIME_BORDER = 0.6;
+	static double CUT_SCORE_BORDER = 0.9;
+
+	static double UCBNOTE_EVAL_WEIGHT = 0.5;
+
+	static int NOTEPLAY_MAX = 30;
+	static int ESTSLOT_BORDER = 5;
+	
 	public int playSlots(int coins, int maxTime, int noteTime, int numMachines) {
 		BrokenSlotMachines.coins = coins;
 		BrokenSlotMachines.C = coins;
@@ -18,10 +31,9 @@ public class BrokenSlotMachines {
 		for (int i = 0; i < numMachines; i++) {
 			slot[i] = new Machine(i);
 		}
-		final double searchRatio = 0.2;
-		final int numUseNote = (int) Math.min(coins * searchRatio * 2,
-				maxTime * searchRatio / noteTime) / numMachines;
-		if (coins / numMachines < 1000) solveSearchingUCB(numUseNote);
+		final int numUseNote = (int) Math.min(coins * SEARCH_RATIO_COIN,
+				maxTime * SEARCH_RATIO_TIME / noteTime) / numMachines;
+		if (coins / numMachines < SWITCH_ALGO_BORDER) solveSearchingUCB(numUseNote);
 		else solveSearching(numUseNote);
 		return 0;
 	}
@@ -60,25 +72,28 @@ public class BrokenSlotMachines {
 	
 	void solveUCB(boolean played, int maxPlay, boolean useNote) {
 		if (!played) for (Machine s: slot) s.play(1);
+		double preBest = 0;
 		for (int t = 1; passed < maxTime && coins > 50 && t < maxPlay; t++) {
 			double bestScore = Integer.MIN_VALUE;
 			Machine best = null;
 			for (Machine s: slot) {
 				if (s.decline) continue;
-				final double score = s.expect() + Math.sqrt(Math.log(t) / (s.count * 2));
+				final double score = s.expect() * UCB_EVAL_WEIGHT
+						+ Math.sqrt(Math.log(t) / (s.count * 2));
 				if (score > bestScore) {
 					bestScore = score;
 					best = s;
 				}
 			}
-			if (passed > maxTime * 0.6 && best.expect() < 0.9) return;
-			if (useNote && best.expect() < 0.9 && noteTime + passed <= maxTime) best.notePlay(1);
+			preBest = best.expect();
+			if (passed > maxTime * CUT_TIME_BORDER && preBest < CUT_SCORE_BORDER) return;
+			if (useNote && preBest < CUT_SCORE_BORDER && noteTime + passed <= maxTime) best.notePlay(1);
 			else best.play(1);
 		}
 	}
 
 	void solveSearchingUCB(int numNotePlay) {
-		numNotePlay = Math.min(30, numNotePlay);
+		numNotePlay = Math.min(NOTEPLAY_MAX, numNotePlay);
 		
 		for (Machine s: slot) {
 			s.notePlay(1);
@@ -89,7 +104,7 @@ public class BrokenSlotMachines {
 			Machine best = null;
 			for (Machine s: slot) {
 				final double score = s.expectNote()
-						* (1 + Const.meanDiff[Math.min(30, s.count)]) * 0.5
+						* (1 + Const.meanDiff[Math.min(30, s.count)]) * UCBNOTE_EVAL_WEIGHT
 						+ Math.sqrt(Math.log(t) / (s.count * 2));
 				if (score > bestScore) {
 					bestScore = score;
@@ -100,7 +115,7 @@ public class BrokenSlotMachines {
 		}
 		
 		for (Machine s: slot) {
-			if (s.count >= 5) s.estimateSlot(rand);
+			if (s.count >= ESTSLOT_BORDER) s.estimateSlot(rand);
 		}
 		
 		solveUCB(numNotePlay > 0, maxTime, true);
@@ -120,7 +135,7 @@ public class BrokenSlotMachines {
 	}
 
 	void solveSearching(int numNotePlay) {
-		numNotePlay = Math.min(30, numNotePlay);
+		numNotePlay = Math.min(NOTEPLAY_MAX, numNotePlay);
 		if(numNotePlay * noteTime * N > maxTime || numNotePlay * N > coins) {
 			System.err.println("Play time over.");
 			numNotePlay = Math.min(maxTime / (noteTime * N), coins / N);
@@ -133,7 +148,7 @@ public class BrokenSlotMachines {
 				}
 				s.notePlay(1);
 			}
-			if (s.count >= 5) s.estimateSlot(rand);
+			if (s.count >= ESTSLOT_BORDER) s.estimateSlot(rand);
 		}
 		
 		solveUCB(numNotePlay > 0, maxTime, true);
@@ -152,6 +167,15 @@ class Machine {
 		for (char c: slotChars.toCharArray()) alpRatio[c - 'A']++;
 		for (int i = 0; i < SLOT_LABEL_N; i++) alpRatio[i] /= slotChars.length();
 	}
+	
+	static double PLAYOK_TIME_WEIGHT = 2.0 / 3.0;
+	static double PLAYOK_COIN_WEIGHT = 0.1;
+	
+	static int EST_SPACE = 18;
+	static double ALP_EST_WEIGHT = 0.5;
+
+	static double EXPECT_RATIO = 0.3;
+	
 	int id;
 	int wins;
 	int count;
@@ -209,9 +233,8 @@ class Machine {
 	}
 	
 	boolean playOK(int time) {
-		return //BrokenSlotMachines.passed + time * BrokenSlotMachines.noteTime <= BrokenSlotMachines.maxTime && 
-				BrokenSlotMachines.passed < BrokenSlotMachines.maxTime * 2 / 3 ||
-				BrokenSlotMachines.coins > BrokenSlotMachines.C * 0.1 ||
+		return BrokenSlotMachines.passed < BrokenSlotMachines.maxTime * PLAYOK_TIME_WEIGHT ||
+				BrokenSlotMachines.coins > BrokenSlotMachines.C * PLAYOK_COIN_WEIGHT ||
 				expect() >= 1;
 	}
 	
@@ -238,7 +261,6 @@ class Machine {
 	}
 
 	final double TEMPER = 0.01;
-	final double TOP = 10; // 最終的に残す上位
 	final double SWAP_DIFF = 2; // 経過50%時に得点差SWAP_DIFFなら確率1/eでswap
 
 	private int[] estimateSlotEach(int[][] hist, Random r) {
@@ -333,7 +355,6 @@ class Machine {
 		return 0;
 	}
 	
-	final int EST_SPACE = 18;
 	double expectNote() {
 		if (slotLen[0] == 0) return EPS;
 		double exp = 0;
@@ -342,7 +363,8 @@ class Machine {
 			for (int j = 0; j < 3; j++) {
 				if (slotLen[j] == 0) continue;
 				final int slSpace = Math.max(0, EST_SPACE - slotLen[j]);
-				tmp *= (double) (slot[j][i] + slSpace * alpRatio[i] * 0.5) / Math.max(EST_SPACE, slotLen[j]);
+				tmp *= (double) (slot[j][i] + slSpace * alpRatio[i] * ALP_EST_WEIGHT)
+						/ Math.max(EST_SPACE, slotLen[j]);
 			}
 			exp += tmp;
 		}
@@ -353,10 +375,8 @@ class Machine {
 		if(count > 0) return (double) wins / count;
 		return EPS;
 	}
-	
 	double expect() {
-		final double ratio = 0.3;
-		return (expectQuick() * ratio + expectNote() * (1 - ratio));
+		return (expectQuick() * EXPECT_RATIO + expectNote() * (1 - EXPECT_RATIO));
 	}
 	
 	String displaySlot() {
