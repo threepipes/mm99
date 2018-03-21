@@ -1,13 +1,18 @@
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.channels.ShutdownChannelGroupException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Random;
+import java.util.Scanner;
 
 public class BrokenSlotMachinesVis {
 
@@ -202,7 +207,8 @@ public class BrokenSlotMachinesVis {
 		longTest = lt;
 		generateTestCase(Long.parseLong(lt.getTest()));
 		lt.setTimeLimit(TIME_LIMIT);
-		lt.playSlots(coins, maxTime, noteTime, numMachines);
+//		lt.playSlots(coins, maxTime, noteTime, numMachines);
+		new BrokenSlotMachines().playSlots(coins, maxTime, noteTime, numMachines);
 		int timeLeft = TIME_LIMIT - lt.getTime();
 		if (timeLeft < 10) {
 			lt.addFatalError("Time limit exceeded.\n");
@@ -253,37 +259,76 @@ public class BrokenSlotMachinesVis {
 		}
 		return res;
 	}
+	
+	static double[] readBests() {
+		try {
+			Scanner in = new Scanner(new FileReader("best.csv"));
+			final int n = 5000;
+			double[] bests = new double[n];
+			for (int i = 0; i < n; i++) {
+				String[] row = in.next().split(",");
+				final double v = Double.parseDouble(row[1]);
+				bests[i] = v;
+			}
+			return bests;
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	static double[] bests;
+	static {
+		bests = readBests();
+	}
 
 	public static void main(String[] args) {
-		List<Result> resList = new ArrayList<>();
 		boolean debug = true;
 //		doShuffle = true;
-		debug = false;
+//		debug = false;
 		
 //		Log.debug = debug;
-		int start = 1;
-		int end = start + 100;
+		int start = 2001;
+		int caseNum = 3000;
+		int end = start - 1 + caseNum;
 		if (!debug) {
 			start = 1001;
 			end = 2000;
+			caseNum = 1000;
 		}
 		double score = 0;
+		List<Result> resList = new ArrayList<>();
 		for (int i = start; i <= end; i++) {
+			final double best = i <= 5000 ? bests[i - 1] : 1;
 			BrokenSlotMachinesVis vis = new BrokenSlotMachinesVis();
 			PlaySlots.field = vis;
 			Result res = vis.run(i);
 			resList.add(res);
-			System.out.println(res);
-			score += res.score;
+			System.out.println(res + " " + best);
+			score += res.score / best;
 			if (debug) {
-//				System.out.println(vis.displayTestCaseNogen());
-				vis.displayUsed();
-				System.out.println();
+				//				System.out.println(vis.displayTestCaseNogen());
+				//				vis.displayUsed();
+				//				System.out.println();
 			}
 		}
-		System.out.println(score);
-		
+		System.out.println(score / caseNum);
 		if (!debug) outputResult(resList);
+	}
+	
+	static double executeParallel(int caseNum) {
+		final int start = 1001;
+		final int end = start - 1 + caseNum;
+		Log.debug = false;
+		List<Generator> list = new ArrayList<>();
+		for (int i = start; i <= end; i++) {
+			final double best = bests[i - 1001];
+			list.add(new Generator(i, best));
+		}
+		list.parallelStream().forEach(Generator::gen);
+		double score = 0;
+		for (Generator g: list) score += g.score;
+		return score / caseNum;
 	}
 	
     static void outputResult(List<Result> results) {
@@ -314,6 +359,20 @@ public class BrokenSlotMachinesVis {
             e.printStackTrace();
         }
     }
+}
+
+class Generator {
+	int seed;
+	double score, best;
+	public Generator(int seed, double best) {
+		this.seed = seed;
+		this.best = best;
+	}
+	void gen() {
+		BrokenSlotMachinesVis vis = new BrokenSlotMachinesVis();
+		Result res = vis.run(seed);
+		score += res.score / best;
+	}
 }
 
 class Result {
@@ -395,8 +454,9 @@ class LongTest {
 //		return 0;
 //	}
 	
-	int playSlots(int coins, int maxTime, int noteTime, int numMachines) {
-		player = new BrokenSlotMachines();
-		return player.playSlots(coins, maxTime, noteTime, numMachines);
-	}
+//	int playSlots(int coins, int maxTime, int noteTime,
+//			int numMachines, BrokenSlotMachinesVis vis) {
+//		player = new BrokenSlotMachines(vis);
+//		return player.playSlots(coins, maxTime, noteTime, numMachines);
+//	}
 }

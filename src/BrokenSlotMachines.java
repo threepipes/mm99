@@ -3,47 +3,66 @@ import java.util.List;
 import java.util.Random;
 
 public class BrokenSlotMachines {
-	static int coins, passed, noteTime, maxTime, N, C;
+//    public static final int[] PARAM_INI = {16, 25, 14,  8,  9,  9,  2, 11,  5, 64,  8, 24,  7,  3};  // 初期パラメータ
+    public static final int[] PARAM_INI = {20, 40, 10, 10,  6,  9,  5, 30,  5, 66, 10, 18,  5,  3};  // 初期パラメータ
+	static void applyParam() {
+    	BrokenSlotMachines.SEARCH_RATIO_TIME = PARAM_INI[0] / 100.0;
+    	BrokenSlotMachines.SEARCH_RATIO_COIN = PARAM_INI[1] / 100.0;
+    	BrokenSlotMachines.SWITCH_ALGO_BORDER= PARAM_INI[2] * 100;
+    	BrokenSlotMachines.UCB_EVAL_WEIGHT   = PARAM_INI[3] / 10.0;
+    	BrokenSlotMachines.CUT_TIME_BORDER   = PARAM_INI[4] / 10.0;
+    	BrokenSlotMachines.CUT_SCORE_BORDER  = PARAM_INI[5] / 10.0;
+    	BrokenSlotMachines.UCBNOTE_EVAL_WEIGHT=PARAM_INI[6] / 10.0;
+    	BrokenSlotMachines.NOTEPLAY_MAX      = PARAM_INI[7];
+    	BrokenSlotMachines.ESTSLOT_BORDER    = PARAM_INI[8];
+    	Machine.PLAYOK_TIME_WEIGHT = PARAM_INI[9]  / 100.0;
+    	Machine.PLAYOK_COIN_WEIGHT = PARAM_INI[10] / 100.0;
+    	Machine.EST_SPACE          = PARAM_INI[11];
+    	Machine.ALP_EST_WEIGHT     = PARAM_INI[12] / 10.0;
+    	Machine.EXPECT_RATIO       = PARAM_INI[13] / 10.0;
+	}
+	
+	int coins, passed, noteTime, maxTime, N, C;
 	Machine[] slot;
 	Random rand = new Random(0);
 	
-	static double SEARCH_RATIO_TIME = 0.2;
-	static double SEARCH_RATIO_COIN = 0.4;
-	static int SWITCH_ALGO_BORDER = 1000;
+	static double SEARCH_RATIO_TIME = 0.36; // 0.1 - 0.5
+	static double SEARCH_RATIO_COIN = 0.24; // 0.1 - 0.9
+	static int SWITCH_ALGO_BORDER = 2100;  // 0 - 10000
 
-	static double UCB_EVAL_WEIGHT = 1.0;
-	static double CUT_TIME_BORDER = 0.6;
-	static double CUT_SCORE_BORDER = 0.9;
+	static double UCB_EVAL_WEIGHT = 1.1;   // 0.1 - 1.0
+	static double CUT_TIME_BORDER = 0.8;   // 0.5 - 1.0
+	static double CUT_SCORE_BORDER = 0.9;  // 0.7 - 1.0
 
-	static double UCBNOTE_EVAL_WEIGHT = 0.5;
+	static double UCBNOTE_EVAL_WEIGHT = 0.5;// 0.1 - 1.0
 
-	static int NOTEPLAY_MAX = 30;
-	static int ESTSLOT_BORDER = 5;
+	static int NOTEPLAY_MAX = 11;   // 10 - 40
+	static int ESTSLOT_BORDER = 8;  // 3 - 15
+	
+	static int playMachine = 0;
 	
 	public int playSlots(int coins, int maxTime, int noteTime, int numMachines) {
-		BrokenSlotMachines.coins = coins;
-		BrokenSlotMachines.C = coins;
-		BrokenSlotMachines.noteTime = noteTime;
-		BrokenSlotMachines.maxTime = maxTime;
-		BrokenSlotMachines.N = numMachines;
+//		applyParam();
+		this.coins = coins;
+		this.C = coins;
+		this.noteTime = noteTime;
+		this.maxTime = maxTime;
+		this.N = numMachines;
 		passed = 0;
 		slot = new Machine[numMachines];
 		for (int i = 0; i < numMachines; i++) {
-			slot[i] = new Machine(i);
+			slot[i] = new Machine(i, this);
 		}
 		final int numUseNote = (int) Math.min(coins * SEARCH_RATIO_COIN,
 				maxTime * SEARCH_RATIO_TIME / noteTime) / numMachines;
 		if (coins / numMachines < SWITCH_ALGO_BORDER) solveSearchingUCB(numUseNote);
 		else solveSearching(numUseNote);
+//		while (coins > 0 && maxTime > 0) {
+//			coins--;
+//			maxTime--;
+//			coins += PlaySlots.quickPlay(playMachine % numMachines, 1);
+//		}
 		return 0;
-	}
-	
-	public static double gameTime() {
-		return (double) passed / maxTime;
-	}
-	
-	public static double gameTimeLeft() {
-		return 1 - gameTime();
 	}
 	
 	void solveEpsGreedy(double eps, double dec) {
@@ -168,13 +187,13 @@ class Machine {
 		for (int i = 0; i < SLOT_LABEL_N; i++) alpRatio[i] /= slotChars.length();
 	}
 	
-	static double PLAYOK_TIME_WEIGHT = 2.0 / 3.0;
-	static double PLAYOK_COIN_WEIGHT = 0.1;
+	static double PLAYOK_TIME_WEIGHT = 0.72;  // 0.5 - 1.0
+	static double PLAYOK_COIN_WEIGHT = 0.01;        // 0.0 - 0.4
 	
-	static int EST_SPACE = 18;
-	static double ALP_EST_WEIGHT = 0.5;
+	static int EST_SPACE = 28;                     // 1 - 30
+	static double ALP_EST_WEIGHT = 0.8;            // 0.1 - 1.0
 
-	static double EXPECT_RATIO = 0.3;
+	static double EXPECT_RATIO = 0.4;              // 0.1 - 0.9
 	
 	int id;
 	int wins;
@@ -182,40 +201,42 @@ class Machine {
 	int[][] slot;
 	int[] slotLen;
 	boolean decline = false;
-	Machine(int id) {
+	BrokenSlotMachines par;
+	Machine(int id, BrokenSlotMachines par) {
 		this.id = id;
 		slot = new int[3][SLOT_LABEL_N];
 
 		slotLen = new int[3];
 		for (int i = 0; i < 3; i++)
 			slotHist[i] = new ArrayList<>();
+		this.par = par;
 	}
 	
 	int play(int time) {
 		if (!playOK(time)) {
-			BrokenSlotMachines.passed++;
+			par.passed++;
 			return 0;
 		}
 		int win = PlaySlots.quickPlay(id, time);
 		wins += win;
 		count += time;
-		BrokenSlotMachines.coins += win - time;
-		BrokenSlotMachines.passed += time;
+		par.coins += win - time;
+		par.passed += time;
 		Log.d(String.format("%d: %d/%d", id, wins, count));
 		return win;
 	}
 	
 	String[] notePlay(int time) {
 		if (!playOK(time)) {
-			BrokenSlotMachines.passed++;
+			par.passed++;
 			return null;
 		}
 		String[] res = PlaySlots.notePlay(id, time);
 		int win = Integer.parseInt(res[0]);
 		wins += win;
 		count += time;
-		BrokenSlotMachines.coins += win - time;
-		BrokenSlotMachines.passed += BrokenSlotMachines.noteTime * time;
+		par.coins += win - time;
+		par.passed += par.noteTime * time;
 		for (int t = 0; t < time; t++) {
 			for (int i = 0; i < 3; i++) {
 				slotLen[i] += 3;
@@ -233,8 +254,8 @@ class Machine {
 	}
 	
 	boolean playOK(int time) {
-		return BrokenSlotMachines.passed < BrokenSlotMachines.maxTime * PLAYOK_TIME_WEIGHT ||
-				BrokenSlotMachines.coins > BrokenSlotMachines.C * PLAYOK_COIN_WEIGHT ||
+		return par.passed < par.maxTime * PLAYOK_TIME_WEIGHT ||
+				par.coins > par.C * PLAYOK_COIN_WEIGHT ||
 				expect() >= 1;
 	}
 	
