@@ -208,7 +208,8 @@ public class BrokenSlotMachinesVis {
 		generateTestCase(Long.parseLong(lt.getTest()));
 		lt.setTimeLimit(TIME_LIMIT);
 //		lt.playSlots(coins, maxTime, noteTime, numMachines);
-		new BrokenSlotMachines().playSlots(coins, maxTime, noteTime, numMachines);
+		longTest.player = new BrokenSlotMachines();
+		longTest.player.playSlots(coins, maxTime, noteTime, numMachines);
 		int timeLeft = TIME_LIMIT - lt.getTime();
 		if (timeLeft < 10) {
 			lt.addFatalError("Time limit exceeded.\n");
@@ -288,8 +289,8 @@ public class BrokenSlotMachinesVis {
 //		debug = false;
 		
 //		Log.debug = debug;
-		int start = 2001;
-		int caseNum = 3000;
+		int start = 4972;
+		int caseNum = 1;
 		int end = start - 1 + caseNum;
 		if (!debug) {
 			start = 1001;
@@ -307,9 +308,9 @@ public class BrokenSlotMachinesVis {
 			System.out.println(res + " " + best);
 			score += res.score / best;
 			if (debug) {
-				//				System.out.println(vis.displayTestCaseNogen());
-				//				vis.displayUsed();
-				//				System.out.println();
+//				System.out.println(vis.displayTestCaseNogen());
+				vis.displayUsed();
+//				System.out.println();
 			}
 		}
 		System.out.println(score / caseNum);

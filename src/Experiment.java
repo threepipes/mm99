@@ -181,7 +181,7 @@ public class Experiment {
 		TestMachine[] slot = new TestMachine[n];
 		for (int t = 0; t < n; t++) {
 			slot[t] = new TestMachine(t);
-			final int times = 15;
+			final int times = 5;
 			for (int i = 0; i < times; i++) {
 				slot[t].notePlay(this);
 			}
@@ -238,7 +238,7 @@ public class Experiment {
 	}
 
 	public static void main(String[] args) {
-		new Experiment().statCompose();
+		new Experiment().testCompose();
 	}
 }
 
@@ -265,18 +265,76 @@ class TestMachine {
 	void estimateSlot(Random r) {
 		if (slotHist[0].size() < 3)
 			return;
+		
 		for (int i = 0; i < 3; i++) {
-			int[][] hist = new int[slotHist[i].size()][3];
-			for (int j = 0; j < slotHist[i].size(); j++) {
+			final int len = slotHist[i].size();
+			int[][] hist = new int[len][3];
+			for (int j = 0; j < len; j++) {
 				hist[j] = slotHist[i].get(j);
 			}
-			int[] newSlot = estimateSlotEach(hist, r);
+			int[] newSlot = len < 10 ? estimateSlotDP(hist) : estimateSlotEach(hist, r);
 			slot[i] = newSlot;
 			slotLen[i] = 0;
 			for (int j = 0; j < 7; j++) {
 				slotLen[i] += newSlot[j];
 			}
 		}
+	}
+	
+	private int[] estimateSlotDP(int[][] hist) {
+		final int n = hist.length;
+		int[][] table = new int[n][n];
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				table[i][j] = 3 - countDuplication(hist[i], hist[j]);
+			}
+		}
+		final int sz = 1 << n;
+		int[][] dp = new int[sz][n];
+		int[][] pre = new int[sz][n];
+		for (int i = 0; i < sz; i++) {
+			Arrays.fill(dp[i], Integer.MAX_VALUE);
+			Arrays.fill(pre[i], -1);
+		}
+		for (int i = 0; i < n; i++) {
+			dp[1 << i][i] = 3;
+		}
+		for (int i = 1; i < sz; i++) {
+			for (int j = 0; j < n; j++) {
+				if (dp[i][j] == Integer.MAX_VALUE) continue;
+				for (int k = 0; k < n; k++) {
+					if ((i & 1 << k) > 0) continue;
+					final int cost = dp[i][j] + table[j][k];
+					if (cost < dp[i | 1 << k][k]) {
+						dp[i | 1 << k][k] = cost;
+						pre[i | 1 << k][k] = j;
+					}
+				}
+			}
+		}
+		int min = Integer.MAX_VALUE;
+		int minId = -1;
+		for (int i = 0; i < n; i++) {
+			if (dp[sz - 1][i] < min) {
+				min = dp[sz - 1][i];
+				minId = i;
+			}
+		}
+		int[] ord = new int[n];
+		int id = minId;
+		int bitmap = sz - 1;
+		int[] dup = new int[n];
+		for (int i = n - 1; i >= 0; i--) {
+			ord[i] = id;
+			id = pre[bitmap][id];
+			bitmap = bitmap & ~(1 << ord[i]);
+			if (id >= 0) dup[i] = 3 - table[id][ord[i]];
+			else dup[i] = 0;
+		}
+		
+		dumpOrder(ord, dup, hist);
+		
+		return updateSlot(hist, ord, dup);
 	}
 
 	final double TEMPER = 0.01;

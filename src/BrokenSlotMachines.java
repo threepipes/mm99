@@ -1,10 +1,12 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 public class BrokenSlotMachines {
-//    public static final int[] PARAM_INI = {16, 25, 14,  8,  9,  9,  2, 11,  5, 64,  8, 24,  7,  3};  // 初期パラメータ
-    public static final int[] PARAM_INI = {20, 40, 10, 10,  6,  9,  5, 30,  5, 66, 10, 18,  5,  3};  // 初期パラメータ
+    public static final int[] PARAM_INI = {17, 46, 53, 17,  5,  9,  1, 18, 11, 64,  4, 14,  4,  3};  // 初期パラメータ
+//    public static final int[] PARAM_INI = {13, 67, 37, 12, 7, 9, 3, 25, 10, 67, 25, 28, 7, 3};  // 初期パラメータ
+//    public static final int[] PARAM_INI = {20, 40, 10, 10,  6,  9,  5, 30,  5, 66, 10, 18,  5,  3};  // 初期パラメータ
 	static void applyParam() {
     	BrokenSlotMachines.SEARCH_RATIO_TIME = PARAM_INI[0] / 100.0;
     	BrokenSlotMachines.SEARCH_RATIO_COIN = PARAM_INI[1] / 100.0;
@@ -32,7 +34,7 @@ public class BrokenSlotMachines {
 
 	static double UCB_EVAL_WEIGHT = 1.1;   // 0.1 - 1.0
 	static double CUT_TIME_BORDER = 0.8;   // 0.5 - 1.0
-	static double CUT_SCORE_BORDER = 0.9;  // 0.7 - 1.0
+	static double CUT_SCORE_BORDER = 1;  // 0.7 - 1.0
 
 	static double UCBNOTE_EVAL_WEIGHT = 0.5;// 0.1 - 1.0
 
@@ -42,7 +44,7 @@ public class BrokenSlotMachines {
 	static int playMachine = 0;
 	
 	public int playSlots(int coins, int maxTime, int noteTime, int numMachines) {
-//		applyParam();
+		applyParam();
 		this.coins = coins;
 		this.C = coins;
 		this.noteTime = noteTime;
@@ -159,7 +161,6 @@ public class BrokenSlotMachines {
 			System.err.println("Play time over.");
 			numNotePlay = Math.min(maxTime / (noteTime * N), coins / N);
 		}
-		
 		if (numNotePlay > 0) for (Machine s: slot) {
 			for (int i = 0; i < numNotePlay; i++) {
 				if (i >= 10 && s.expectNote() * (1 + Const.meanDiff[i]) < 1) {
@@ -169,6 +170,7 @@ public class BrokenSlotMachines {
 			}
 			if (s.count >= ESTSLOT_BORDER) s.estimateSlot(rand);
 		}
+		
 		
 		solveUCB(numNotePlay > 0, maxTime, true);
 	}
@@ -267,11 +269,12 @@ class Machine {
 			return;
 //		final double upd = expectNote();
 		for (int i = 0; i < 3; i++) {
-			int[][] hist = new int[slotHist[i].size()][3];
-			for (int j = 0; j < slotHist[i].size(); j++) {
+			final int len = slotHist[i].size();
+			int[][] hist = new int[len][3];
+			for (int j = 0; j < len; j++) {
 				hist[j] = slotHist[i].get(j);
 			}
-			int[] newSlot = estimateSlotEach(hist, r);
+			int[] newSlot = len <= 0 ? estimateSlotDP(hist) : estimateSlotEach(hist, r);
 			slot[i] = newSlot;
 			slotLen[i] = 0;
 			for (int j = 0; j < 7; j++) {
@@ -279,6 +282,60 @@ class Machine {
 			}
 		}
 //		updateExp = Math.sqrt(upd * expectNote());
+	}
+	
+	private int[] estimateSlotDP(int[][] hist) {
+		final int n = hist.length;
+		int[][] table = new int[n][n];
+		for (int i = 0; i < n; i++) {
+			for (int j = 0; j < n; j++) {
+				table[i][j] = 3 - countDuplication(hist[i], hist[j]);
+			}
+		}
+		final int sz = 1 << n;
+		int[][] dp = new int[sz][n];
+		int[][] pre = new int[sz][n];
+		for (int i = 0; i < sz; i++) {
+			Arrays.fill(dp[i], Integer.MAX_VALUE);
+			Arrays.fill(pre[i], -1);
+		}
+		for (int i = 0; i < n; i++) {
+			dp[1 << i][i] = 3;
+		}
+		for (int i = 1; i < sz; i++) {
+			for (int j = 0; j < n; j++) {
+				if (dp[i][j] == Integer.MAX_VALUE) continue;
+				for (int k = 0; k < n; k++) {
+					if ((i & 1 << k) > 0) continue;
+					final int cost = dp[i][j] + table[j][k];
+					if (cost < dp[i | 1 << k][k]) {
+						dp[i | 1 << k][k] = cost;
+						pre[i | 1 << k][k] = j;
+					}
+				}
+			}
+		}
+		int min = Integer.MAX_VALUE;
+		int minId = -1;
+		for (int i = 0; i < n; i++) {
+			if (dp[sz - 1][i] < min) {
+				min = dp[sz - 1][i];
+				minId = i;
+			}
+		}
+		int[] ord = new int[n];
+		int id = minId;
+		int bitmap = sz - 1;
+		int[] dup = new int[n];
+		for (int i = n - 1; i >= 0; i--) {
+			ord[i] = id;
+			id = pre[bitmap][id];
+			bitmap = bitmap & ~(1 << ord[i]);
+			if (id >= 0) dup[i] = 3 - table[id][ord[i]];
+			else dup[i] = 0;
+		}
+		
+		return updateSlot(hist, ord, dup);
 	}
 
 	final double TEMPER = 0.01;
